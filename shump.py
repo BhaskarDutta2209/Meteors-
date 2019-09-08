@@ -26,6 +26,7 @@ clock = pygame.time.Clock()
 
 font_name = pygame.font.match_font("arial")
 
+#drawing text at the passed cordinates
 def draw_text(surf, text, size, x, y):
     font = pygame.font.Font(font_name, size)
     text_surface = font.render(text, True, WHITE)
@@ -33,6 +34,7 @@ def draw_text(surf, text, size, x, y):
     text_rect.midtop = (x,y)
     surf.blit(text_surface, text_rect)
 
+#drawing the sheild
 def drawSheid(surf, x, y, pct):
     if pct < 0:
         pct = 0
@@ -46,6 +48,7 @@ def drawSheid(surf, x, y, pct):
     pygame.draw.rect(surf, GREEN, fill_rect)
     pygame.draw.rect(surf, WHITE, outline_rect,2)
     
+#creating new meteors
 def newMob():
     m = Mob()
     mobs.add(m)
