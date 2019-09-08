@@ -26,7 +26,6 @@ clock = pygame.time.Clock()
 
 font_name = pygame.font.match_font("arial")
 
-#drawing text at the passed cordinates
 def draw_text(surf, text, size, x, y):
     font = pygame.font.Font(font_name, size)
     text_surface = font.render(text, True, WHITE)
@@ -34,7 +33,6 @@ def draw_text(surf, text, size, x, y):
     text_rect.midtop = (x,y)
     surf.blit(text_surface, text_rect)
 
-#drawing the sheild
 def drawSheid(surf, x, y, pct):
     if pct < 0:
         pct = 0
@@ -48,7 +46,6 @@ def drawSheid(surf, x, y, pct):
     pygame.draw.rect(surf, GREEN, fill_rect)
     pygame.draw.rect(surf, WHITE, outline_rect,2)
     
-#creating new meteors
 def newMob():
     m = Mob()
     mobs.add(m)
@@ -82,7 +79,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.bottom = HEIGHT - 10
         self.speedx = 0
         self.sheild = 100
-        self.shoot_delay = 1000
+        self.shoot_delay = 200  
         self.last_shot = pygame.time.get_ticks()
 
     def update(self):
@@ -103,6 +100,7 @@ class Player(pygame.sprite.Sprite):
     def shoot(self):
         now = pygame.time.get_ticks()
         if now - self.last_shot > self.shoot_delay:
+            self.last_shot = now
             shoot_sound.play()    
             bullet = Bullet(self.rect.centerx, self.rect.top)
             bullets.add(bullet)
