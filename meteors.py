@@ -19,6 +19,7 @@ RED = (255,0,0)
 GREEN = (0,255,0)
 BLUE = (0,0,255)
 YELLOW = (255,255,0)
+POWERUP_TIME = 5000
 
 pygame.init()
 pygame.mixer.init()
@@ -59,13 +60,17 @@ for i in range(9):
     img.set_colorkey(BLACK)
     explosion_anim["player"].append(img)
 
+powerup_images = {}
+powerup_images["shield"] = pygame.image.load(path.join(img_dir,"shield_gold.png")).convert()
+powerup_images["gun"] = pygame.image.load(path.join(img_dir,"bolt_gold.png")).convert()
+
 #load game audio
 
 shoot_sound = pygame.mixer.Sound(path.join(snd_dir,"pew.wav"))
 ship_blast = pygame.mixer.Sound(path.join(snd_dir,"rumble1.ogg"))
 exp_sounds = [pygame.mixer.Sound(path.join(snd_dir,"meteorBlast1.wav")),pygame.mixer.Sound(path.join(snd_dir,"meteorBlast2.wav"))]
 pygame.mixer.music.load(path.join(snd_dir,"backgroundMusic.ogg"))
-pygame.mixer.music.set_volume(0.4)
+pygame.mixer.music.set_volume(0.1)
 
 
 font_name = pygame.font.match_font("arial")
@@ -77,7 +82,7 @@ def draw_text(surf, text, size, x, y):
     text_rect.midtop = (x,y)
     surf.blit(text_surface, text_rect)
 
-def drawSheid(surf, x, y, pct):
+def drawShield(surf, x, y, pct):
     if pct < 0:
         pct = 0
     BAR_LENGTH = 100
@@ -89,7 +94,7 @@ def drawSheid(surf, x, y, pct):
 
     pygame.draw.rect(surf, GREEN, fill_rect)
     pygame.draw.rect(surf, WHITE, outline_rect,2)
-    
+
 def newMob():
     m = Mob()
     mobs.add(m)
@@ -124,7 +129,24 @@ class Explosion(pygame.sprite.Sprite):
                 center = self.rect.center
                 self.image = explosion_anim[self.size][self.frame]
                 self.rect = self.image.get_rect()
-                self.rect.center = center 
+                self.rect.center = center
+
+class Pow(pygame.sprite.Sprite):
+    def __init__(self, center):
+        pygame.sprite.Sprite.__init__(self)
+        self.type = random.choice(["shield","gun"])
+        self.image = powerup_images[self.type]
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+
+        self.rect.center = center
+        self.speedy = 2
+
+    def update(self):
+        self.rect.y += self.speedy
+
+        if self.rect.top > HEIGHT:
+            self.kill()
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -153,14 +175,20 @@ class Player(pygame.sprite.Sprite):
         self.rect.centerx = WIDTH//2
         self.rect.bottom = HEIGHT - 10
         self.speedx = 0
-        self.sheild = 100
-        self.shoot_delay = 200  
+        self.shield = 100
+        self.shoot_delay = 200
         self.last_shot = pygame.time.get_ticks()
         self.lives = 3
         self.hidden = False
         self.hide_timer = pygame.time.get_ticks()
+        self.power = 1
+        self.power_time = pygame.time.get_ticks()
 
     def update(self):
+        if self.power >= 2 and pygame.time.get_ticks() - self.power_time > POWERUP_TIME:
+            self.power -= 1
+            self.power_time = pygame.time.get_ticks()
+
         if self.hidden and pygame.time.get_ticks() - self.hide_timer > 1000:
             self.hidden = False
             self.rect.centerx = WIDTH//2
@@ -179,14 +207,27 @@ class Player(pygame.sprite.Sprite):
         if self.rect.left < 0:
             self.rect.left = 0
 
+    def powerup(self):
+        self.power += 1
+        self.power_time = pygame.time.get_ticks()
+
+
     def shoot(self):
         now = pygame.time.get_ticks()
         if now - self.last_shot > self.shoot_delay:
             self.last_shot = now
-            shoot_sound.play()    
-            bullet = Bullet(self.rect.centerx, self.rect.top)
-            bullets.add(bullet)
-            all_sprites.add(bullet)
+            shoot_sound.play()
+            if self.power == 1:
+                bullet = Bullet(self.rect.centerx, self.rect.top)
+                bullets.add(bullet)
+                all_sprites.add(bullet)
+            if self.power >= 2:
+                bullet1 = Bullet(self.rect.left, self.rect.centery)
+                bullet2 = Bullet(self.rect.right, self.rect.centery)
+                bullets.add(bullet1)
+                bullets.add(bullet2)
+                all_sprites.add(bullet1)
+                all_sprites.add(bullet2)
 
     def hide(self):
         self.hidden = True
@@ -233,19 +274,17 @@ class Mob(pygame.sprite.Sprite):
             self.speedx = random.randrange(-5,5)
             self.speedy = random.randrange(1,10)
 
-
-
 all_sprites = pygame.sprite.Group()
 player = Player()
 all_sprites.add(player)
 
 score = 0
 
+bullets = pygame.sprite.Group()
+powerups = pygame.sprite.Group()
 mobs = pygame.sprite.Group()
 for i in range(5):
     newMob()
-
-bullets = pygame.sprite.Group()
 
 pygame.mixer.music.play(loops = -1)
 
@@ -259,7 +298,7 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        
+
     #update
     all_sprites.update()
 
@@ -271,23 +310,35 @@ while running:
         expl = Explosion(hit.rect.center,"lg")
         all_sprites.add(expl)
         newMob()
+        if random.random() > 0.9:
+            pow = Pow(hit.rect.center)
+            all_sprites.add(pow)
+            powerups.add(pow)
+
+    #check player hit power up
+    hits = pygame.sprite.spritecollide(player,powerups,True)
+    for hit in hits:
+        if hit.type == "shield":
+            player.shield += random.randint(10,30)
+            if player.shield >= 100:
+                player.shield = 100 
+        if hit.type == "gun":
+            player.powerup()
 
     #check for collision with block
     hits = pygame.sprite.spritecollide(player, mobs, True, pygame.sprite.collide_circle)
     for hit in hits:
         newMob()
-        player.sheild -= hit.radius * 2
+        player.shield -= hit.radius * 2
         ship_blast.play()
         expl = Explosion(hit.rect.center,"sm")
         all_sprites.add(expl)
-        if player.sheild <= 0:
+        if player.shield <= 0:
             death_explosion = Explosion(player.rect.center, "player")
             all_sprites.add(death_explosion)
             player.hide()
             player.lives -= 1
-            player.sheild = 100
-
-            print("dead")
+            player.shield = 100
 
     if player.lives == 0 and not death_explosion.alive():
         running = False
@@ -297,7 +348,7 @@ while running:
     screen.blit(background,background_rect)
     all_sprites.draw(screen)
     draw_text(screen, str(score),18,WIDTH//2,10)
-    drawSheid(screen,5,5,player.sheild)
+    drawShield(screen,5,5,player.shield)
     draw_lives(screen, WIDTH-100, 5, player.lives, player_mini_img)
 
     # *after* drawing everything, flip the display
