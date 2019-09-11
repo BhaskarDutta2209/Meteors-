@@ -107,6 +107,21 @@ def draw_lives(surf, x, y, lives, img):
         img_rect.y = y
         surf.blit(img, img_rect)
 
+def show_go_screen():
+    screen.blit(background,background_rect)
+    draw_text(screen, "METEORS!!", 64, WIDTH//2, HEIGHT//4)
+    draw_text(screen, "Arrow keys move, Space key fire", 22, WIDTH//2, HEIGHT//2)
+    draw_text(screen, "Press any key to start", 18, WIDTH//2, HEIGHT* 3/4)
+    pygame.display.flip()
+    waiting = True
+    while waiting:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            if event.type == pygame.KEYUP:
+                waiting = False
+
 class Explosion(pygame.sprite.Sprite):
     def __init__(self, center, size):
         pygame.sprite.Sprite.__init__(self)
@@ -274,23 +289,29 @@ class Mob(pygame.sprite.Sprite):
             self.speedx = random.randrange(-5,5)
             self.speedy = random.randrange(1,10)
 
-all_sprites = pygame.sprite.Group()
-player = Player()
-all_sprites.add(player)
-
-score = 0
-
-bullets = pygame.sprite.Group()
-powerups = pygame.sprite.Group()
-mobs = pygame.sprite.Group()
-for i in range(5):
-    newMob()
 
 pygame.mixer.music.play(loops = -1)
 
 #Game loop
 running = True
+game_over = True
 while running:
+    if game_over:
+        show_go_screen()
+        game_over = False
+
+        all_sprites = pygame.sprite.Group()
+        player = Player()
+        all_sprites.add(player)
+
+        score = 0
+
+        bullets = pygame.sprite.Group()
+        powerups = pygame.sprite.Group()
+        mobs = pygame.sprite.Group()
+        for i in range(5):
+            newMob()
+
     #keep loop running at the right speed
     clock.tick(FPS)
 
@@ -341,7 +362,7 @@ while running:
             player.shield = 100
 
     if player.lives == 0 and not death_explosion.alive():
-        running = False
+        game_over = True
 
     # Draw / Render
     screen.fill(BLACK)
